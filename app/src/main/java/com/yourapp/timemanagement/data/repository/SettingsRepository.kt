@@ -1,0 +1,114 @@
+package com.yourapp.timemanagement.data.repository
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import com.yourapp.timemanagement.domain.CardStyle
+import com.yourapp.timemanagement.domain.DashboardModule
+import com.yourapp.timemanagement.domain.LayoutDensity
+import com.yourapp.timemanagement.domain.ScoringStyle
+import com.yourapp.timemanagement.domain.ThemeMode
+import com.yourapp.timemanagement.domain.UserSettings
+import com.yourapp.timemanagement.domain.defaultDashboardModules
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "time_management_settings")
+
+class SettingsRepository(private val dataStore: DataStore<Preferences>) {
+    val settings: Flow<UserSettings> = dataStore.data.map { prefs ->
+        UserSettings(
+            onboardingComplete = prefs[Keys.onboardingComplete] ?: false,
+            themeMode = enumValue(prefs[Keys.themeMode], ThemeMode.System),
+            accentColor = prefs[Keys.accentColor] ?: 0xFF1F8A70,
+            cardStyle = enumValue(prefs[Keys.cardStyle], CardStyle.Rounded),
+            density = enumValue(prefs[Keys.density], LayoutDensity.Spacious),
+            dashboardModules = decodeModules(prefs[Keys.dashboardModules]),
+            scoringStyle = enumValue(prefs[Keys.scoringStyle], ScoringStyle.Balanced),
+            focusPresetMinutes = decodePresets(prefs[Keys.focusPresets]),
+            notificationTone = prefs[Keys.notificationTone] ?: "Gentle chime",
+            seededSampleData = prefs[Keys.seededSampleData] ?: false,
+        )
+    }
+
+    suspend fun setOnboardingComplete(value: Boolean) {
+        dataStore.edit { it[Keys.onboardingComplete] = value }
+    }
+
+    suspend fun setSeededSampleData(value: Boolean) {
+        dataStore.edit { it[Keys.seededSampleData] = value }
+    }
+
+    suspend fun setThemeMode(value: ThemeMode) {
+        dataStore.edit { it[Keys.themeMode] = value.name }
+    }
+
+    suspend fun setAccentColor(value: Long) {
+        dataStore.edit { it[Keys.accentColor] = value }
+    }
+
+    suspend fun setCardStyle(value: CardStyle) {
+        dataStore.edit { it[Keys.cardStyle] = value.name }
+    }
+
+    suspend fun setDensity(value: LayoutDensity) {
+        dataStore.edit { it[Keys.density] = value.name }
+    }
+
+    suspend fun setScoringStyle(value: ScoringStyle) {
+        dataStore.edit { it[Keys.scoringStyle] = value.name }
+    }
+
+    suspend fun setNotificationTone(value: String) {
+        dataStore.edit { it[Keys.notificationTone] = value }
+    }
+
+    suspend fun setFocusPresets(values: List<Int>) {
+        dataStore.edit { it[Keys.focusPresets] = values.joinToString(",") }
+    }
+
+    suspend fun setDashboardModules(values: List<DashboardModule>) {
+        dataStore.edit { prefs ->
+            prefs[Keys.dashboardModules] = values.joinToString("|") { module ->
+                "${module.key},${module.label},${module.visible}"
+            }
+        }
+    }
+
+    private fun decodeModules(raw: String?): List<DashboardModule> {
+        if (raw.isNullOrBlank()) return defaultDashboardModules
+        return raw.split("|").mapNotNull { item ->
+            val parts = item.split(",")
+            if (parts.size < 3) null else DashboardModule(
+                key = parts[0],
+                label = parts[1],
+                visible = parts[2].toBooleanStrictOrNull() ?: true,
+            )
+        }.ifEmpty { defaultDashboardModules }
+    }
+
+    private fun decodePresets(raw: String?): List<Int> =
+        raw?.split(",")?.mapNotNull { it.toIntOrNull() }?.filter { it in 5..180 }?.ifEmpty { null }
+            ?: listOf(25, 45, 60)
+
+    private inline fun <reified T : Enum<T>> enumValue(raw: String?, fallback: T): T =
+        raw?.let { runCatching { enumValueOf<T>(it) }.getOrNull() } ?: fallback
+
+    private object Keys {
+        val onboardingComplete = booleanPreferencesKey("onboarding_complete")
+        val seededSampleData = booleanPreferencesKey("seeded_sample_data")
+        val themeMode = stringPreferencesKey("theme_mode")
+        val accentColor = longPreferencesKey("accent_color")
+        val cardStyle = stringPreferencesKey("card_style")
+        val density = stringPreferencesKey("density")
+        val dashboardModules = stringPreferencesKey("dashboard_modules")
+        val scoringStyle = stringPreferencesKey("scoring_style")
+        val focusPresets = stringPreferencesKey("focus_presets")
+        val notificationTone = stringPreferencesKey("notification_tone")
+    }
+}

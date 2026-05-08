@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Time Management</string>
+    <string name="widget_today_description">Shows upcoming tasks for today.</string>
+    <string name="widget_focus_description">Shows the current focus timer and actions.</string>
+    <string name="widget_progress_description">Shows daily task progress and productivity score.</string>
+    <string name="widget_quick_add_description">Adds a quick task from the home screen.</string>
+    <string name="widget_motivation_description">Shows a streak or smart productivity insight.</string>
+</resources>
