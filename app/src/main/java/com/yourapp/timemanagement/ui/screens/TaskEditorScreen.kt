@@ -3,7 +3,6 @@ package com.yourapp.timemanagement.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -105,14 +104,14 @@ fun TaskEditorScreen(
                     )
                 }
                 Text("Date", style = MaterialTheme.typography.titleMedium)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     DateOption("Today", LocalDate.now(), draft.date) { draft = draft.copy(date = it) }
                     DateOption("Tomorrow", LocalDate.now().plusDays(1), draft.date) { draft = draft.copy(date = it) }
                     DateOption("+2 days", LocalDate.now().plusDays(2), draft.date) { draft = draft.copy(date = it) }
                 }
                 Text("Priority", style = MaterialTheme.typography.titleMedium)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TaskPriority.values().forEach { priority ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TaskPriority.entries.forEach { priority ->
                         FilterChip(
                             selected = draft.priority == priority,
                             onClick = { draft = draft.copy(priority = priority) },
@@ -121,7 +120,7 @@ fun TaskEditorScreen(
                     }
                 }
                 Text("Category", style = MaterialTheme.typography.titleMedium)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     uiState.categories.forEach { category ->
                         FilterChip(
                             selected = draft.categoryId == category.id,
@@ -138,8 +137,8 @@ fun TaskEditorScreen(
                     singleLine = true,
                 )
                 Text("Repeat", style = MaterialTheme.typography.titleMedium)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RecurrenceRule.values().forEach { rule ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RecurrenceRule.entries.forEach { rule ->
                         FilterChip(
                             selected = draft.recurrence == rule,
                             onClick = { draft = draft.copy(recurrence = rule) },

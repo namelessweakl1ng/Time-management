@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -91,39 +92,42 @@ class TimeManagementViewModel(
     private val loading = MutableStateFlow(true)
     private val today = MutableStateFlow(LocalDate.now())
 
-    val uiState: StateFlow<TimeManagementUiState> = combine(
-        loading,
-        settingsRepository.settings,
-        timeRepository.tasksForDate(today.value),
-        timeRepository.allTasks,
-        timeRepository.categories,
-        timeRepository.sessionsForDate(today.value),
-        timeRepository.sessions,
-        timeRepository.activeSession,
-    ) { values ->
-        val isLoading = values[0] as Boolean
-        val settings = values[1] as UserSettings
-        val todayTasks = (values[2] as List<*>).filterIsInstance<Task>().withOverdueState()
-        val allTasks = (values[3] as List<*>).filterIsInstance<Task>()
-        val categories = (values[4] as List<*>).filterIsInstance<Category>()
-        val todaySessions = (values[5] as List<*>).filterIsInstance<FocusSession>()
-        val allSessions = (values[6] as List<*>).filterIsInstance<FocusSession>()
-        val activeSession = values[7] as FocusSession?
-        val stats = calculator.calculate(todayTasks, todaySessions, settings)
-        val insights = suggestionEngine.insights(todayTasks, todaySessions, categories, stats)
-        TimeManagementUiState(
-            isLoading = isLoading,
-            settings = settings,
-            todayTasks = todayTasks,
-            allTasks = allTasks,
-            categories = categories,
-            todaySessions = todaySessions,
-            allSessions = allSessions,
-            activeSession = activeSession,
-            stats = stats,
-            insights = insights,
-            analytics = buildAnalytics(settings, allTasks, allSessions, categories, insights),
-        )
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<TimeManagementUiState> = today.flatMapLatest { currentDate ->
+        combine(
+            loading,
+            settingsRepository.settings,
+            timeRepository.tasksForDate(currentDate),
+            timeRepository.allTasks,
+            timeRepository.categories,
+            timeRepository.sessionsForDate(currentDate),
+            timeRepository.sessions,
+            timeRepository.activeSession,
+        ) { values ->
+            val isLoading = values[0] as Boolean
+            val settings = values[1] as UserSettings
+            val todayTasks = (values[2] as List<*>).filterIsInstance<Task>().withOverdueState()
+            val allTasks = (values[3] as List<*>).filterIsInstance<Task>()
+            val categories = (values[4] as List<*>).filterIsInstance<Category>()
+            val todaySessions = (values[5] as List<*>).filterIsInstance<FocusSession>()
+            val allSessions = (values[6] as List<*>).filterIsInstance<FocusSession>()
+            val activeSession = values[7] as FocusSession?
+            val stats = calculator.calculate(todayTasks, todaySessions, settings)
+            val insights = suggestionEngine.insights(todayTasks, todaySessions, categories, stats)
+            TimeManagementUiState(
+                isLoading = isLoading,
+                settings = settings,
+                todayTasks = todayTasks,
+                allTasks = allTasks,
+                categories = categories,
+                todaySessions = todaySessions,
+                allSessions = allSessions,
+                activeSession = activeSession,
+                stats = stats,
+                insights = insights,
+                analytics = buildAnalytics(settings, allTasks, allSessions, categories, insights),
+            )
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TimeManagementUiState())
 
     init {

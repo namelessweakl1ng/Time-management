@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -37,7 +37,7 @@ import com.yourapp.timemanagement.domain.ThemeMode
 import com.yourapp.timemanagement.ui.common.PremiumCard
 import com.yourapp.timemanagement.ui.common.SectionHeader
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     contentPadding: PaddingValues,
@@ -56,8 +56,13 @@ fun SettingsScreen(
     val accents = listOf(0xFF1F8A70, 0xFF536DFE, 0xFFE07A5F, 0xFF7B61FF, 0xFF0F766E, 0xFFBE123C)
 
     LazyColumn(
-        modifier = Modifier.padding(contentPadding),
-        contentPadding = PaddingValues(20.dp, 18.dp, 20.dp, 96.dp),
+        modifier = Modifier,
+        contentPadding = PaddingValues(
+            start = 20.dp,
+            top = contentPadding.calculateTopPadding() + 18.dp,
+            end = 20.dp,
+            bottom = contentPadding.calculateBottomPadding() + 96.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { SectionHeader("Customize", "Shape the cockpit around your work style.") }
@@ -65,8 +70,8 @@ fun SettingsScreen(
             PremiumCard(settings = uiState.settings, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Appearance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ThemeMode.values().forEach { mode ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ThemeMode.entries.forEach { mode ->
                             FilterChip(selected = uiState.settings.themeMode == mode, onClick = { onThemeMode(mode) }, label = { Text(mode.name) })
                         }
                     }
@@ -84,12 +89,16 @@ fun SettingsScreen(
                             ) {}
                         }
                     }
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CardStyle.values().forEach { style ->
-                            FilterChip(selected = uiState.settings.cardStyle == style, onClick = { onCardStyle(style) }, label = { Text("${style.name} cards") })
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CardStyle.entries.forEach { style ->
+                                FilterChip(selected = uiState.settings.cardStyle == style, onClick = { onCardStyle(style) }, label = { Text("${style.name} cards") })
+                            }
                         }
-                        LayoutDensity.values().forEach { density ->
-                            FilterChip(selected = uiState.settings.density == density, onClick = { onDensity(density) }, label = { Text(density.name) })
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LayoutDensity.entries.forEach { density ->
+                                FilterChip(selected = uiState.settings.density == density, onClick = { onDensity(density) }, label = { Text(density.name) })
+                            }
                         }
                     }
                 }
@@ -115,8 +124,8 @@ fun SettingsScreen(
             PremiumCard(settings = uiState.settings, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Productivity scoring", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ScoringStyle.values().forEach { style ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ScoringStyle.entries.forEach { style ->
                             FilterChip(selected = uiState.settings.scoringStyle == style, onClick = { onScoringStyle(style) }, label = { Text(style.name) })
                         }
                     }
