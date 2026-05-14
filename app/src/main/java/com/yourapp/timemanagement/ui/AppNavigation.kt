@@ -134,6 +134,8 @@ fun TimeManagementApp(
                     onOpenTasks = { navController.navigate(Routes.Tasks) },
                     onOpenEditor = { navController.navigate(Routes.TaskEditor) },
                     onStatusChange = viewModel::updateTaskStatus,
+                    onRefreshCalendar = viewModel::refreshCalendarEvents,
+                    onDismissAchievement = viewModel::dismissAchievementDialog,
                 )
             }
             composable(Routes.Tasks) {
@@ -145,6 +147,8 @@ fun TimeManagementApp(
                     onMoveTask = viewModel::moveTask,
                     onDeleteTask = viewModel::deleteTask,
                     onStatusChange = viewModel::updateTaskStatus,
+                    onToggleTagFilter = viewModel::toggleTagFilter,
+                    onClearTagFilters = viewModel::clearTagFilters,
                 )
             }
             composable(Routes.TaskEditor) {
@@ -160,6 +164,11 @@ fun TimeManagementApp(
                         navController.popBackStack()
                     },
                     onCancel = { navController.popBackStack() },
+                    onAddSubTask = viewModel::addSubTask,
+                    onSubTaskChecked = viewModel::setSubTaskCompleted,
+                    onDeleteSubTask = viewModel::deleteSubTask,
+                    onAddTag = viewModel::addTag,
+                    onTaskTagSelected = viewModel::setTaskTag,
                 )
             }
             composable("${Routes.TaskEditor}?taskId={taskId}") { entry ->
@@ -192,6 +201,11 @@ fun TimeManagementApp(
                         navController.popBackStack()
                     },
                     onCancel = { navController.popBackStack() },
+                    onAddSubTask = viewModel::addSubTask,
+                    onSubTaskChecked = viewModel::setSubTaskCompleted,
+                    onDeleteSubTask = viewModel::deleteSubTask,
+                    onAddTag = viewModel::addTag,
+                    onTaskTagSelected = viewModel::setTaskTag,
                 )
             }
             composable(Routes.Focus) {
@@ -203,6 +217,9 @@ fun TimeManagementApp(
                     onCompleteFocus = viewModel::completeFocus,
                     onInterruption = viewModel::recordInterruption,
                     onBreak = viewModel::logBreak,
+                    onSavePreset = viewModel::saveFocusPreset,
+                    onDeletePreset = viewModel::deleteFocusPreset,
+                    onBlockCalendar = viewModel::blockCurrentTaskOnCalendar,
                 )
             }
             composable(Routes.Analytics) {

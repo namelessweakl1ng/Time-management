@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
@@ -51,7 +52,9 @@ import com.yourapp.timemanagement.ui.common.priorityColor
 import com.yourapp.timemanagement.ui.common.timeLabel
 import kotlinx.coroutines.delay
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalTime
+import java.time.ZoneId
 
 @Composable
 fun DashboardScreen(
@@ -62,7 +65,20 @@ fun DashboardScreen(
     onOpenTasks: () -> Unit,
     onOpenEditor: () -> Unit,
     onStatusChange: (Long, TaskStatus) -> Unit,
+    onRefreshCalendar: () -> Unit,
+    onDismissAchievement: () -> Unit,
 ) {
+    LaunchedEffect(uiState.hasCalendarPermission) {
+        if (uiState.hasCalendarPermission) onRefreshCalendar()
+    }
+    uiState.recentlyUnlockedAchievement?.let { achievement ->
+        AlertDialog(
+            onDismissRequest = onDismissAchievement,
+            confirmButton = { Button(onClick = onDismissAchievement) { Text("Nice") } },
+            title = { Text("Achievement unlocked") },
+            text = { Text("${achievement.title}: ${achievement.description}\n+${achievement.xpReward} XP") },
+        )
+    }
     LazyColumn(
         modifier = Modifier.padding(contentPadding),
         contentPadding = PaddingValues(20.dp, 18.dp, 20.dp, 96.dp),
@@ -83,13 +99,22 @@ fun DashboardScreen(
             DailyGoalCard(uiState = uiState)
         }
         item {
+            GamificationCard(uiState)
+        }
+        item {
             FocusNowCard(uiState = uiState, onStartFocus = onStartFocus, onOpenEditor = onOpenEditor)
         }
         item {
             SummaryRow(uiState = uiState)
         }
         item {
+            CalendarOverviewCard(uiState)
+        }
+        item {
             InsightCard(uiState = uiState)
+        }
+        item {
+            SmartPredictionCard(uiState)
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -113,6 +138,85 @@ fun DashboardScreen(
                         Text("Add a focused block and the dashboard will light up with progress, scoring, and suggestions.")
                         Button(onClick = onOpenEditor) { Text("Add first task") }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GamificationCard(uiState: TimeManagementUiState) {
+    PremiumCard(settings = uiState.settings, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                ProgressRing(
+                    progress = uiState.gamification.levelProgress,
+                    label = "level",
+                    value = "${uiState.gamification.level}",
+                )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Level ${uiState.gamification.level}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "${uiState.gamification.xp} XP  |  next at ${uiState.gamification.nextLevelXp} XP",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Streak: ${uiState.gamification.streakDays} day${if (uiState.gamification.streakDays == 1) "" else "s"}",
+                        color = Color(0xFFE07A5F),
+                    )
+                }
+            }
+            val unlocked = uiState.gamification.unlockedAchievements.takeLast(3)
+            if (unlocked.isNotEmpty()) {
+                Text(
+                    "Badges: ${unlocked.joinToString("  |  ") { it.title }}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SmartPredictionCard(uiState: TimeManagementUiState) {
+    PremiumCard(settings = uiState.settings, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Smart timing", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            if (uiState.flowState.active) {
+                Text(
+                    "Flow State badge active: ${uiState.flowState.consecutiveSessions} sessions, ${formatMinutes(uiState.flowState.totalMinutes)} focused.",
+                    color = Color(0xFF1F8A70),
+                )
+            }
+            val prediction = uiState.predictions.firstOrNull()
+            if (prediction == null) {
+                Text("Complete a few focus sessions and local timing predictions will appear here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                val task = uiState.todayTasks.firstOrNull { it.id == prediction.taskId }
+                Text(
+                    "${task?.title ?: "Next task"} looks strongest around ${prediction.suggestedHour}:00 (${(prediction.confidence * 100).toInt()}% confidence).",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarOverviewCard(uiState: TimeManagementUiState) {
+    PremiumCard(settings = uiState.settings, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Calendar", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            if (!uiState.hasCalendarPermission) {
+                Text("Grant calendar permission to see upcoming events beside your focus blocks.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                return@Column
+            }
+            if (uiState.calendarEvents.isEmpty()) {
+                Text("No calendar events left today.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                uiState.calendarEvents.take(3).forEach { event ->
+                    val start = Instant.ofEpochMilli(event.startMillis).atZone(ZoneId.systemDefault()).toLocalTime()
+                    Text("${timeLabel(start.hour, start.minute)}  ${event.title}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

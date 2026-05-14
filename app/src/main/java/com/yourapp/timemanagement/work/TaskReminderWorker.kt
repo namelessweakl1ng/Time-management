@@ -1,12 +1,16 @@
 package com.yourapp.timemanagement.work
 
 import android.content.Context
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 
-class TaskReminderWorker(
-    appContext: Context,
-    params: WorkerParameters,
+@HiltWorker
+class TaskReminderWorker @AssistedInject constructor(
+    @Assisted appContext: Context,
+    @Assisted params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         val taskId = inputData.getLong(KEY_TASK_ID, 0L)

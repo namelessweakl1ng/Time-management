@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 
     <application
         android:name=".TimeManagementApplication"
@@ -25,6 +27,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".widgets.WidgetConfigurationActivity"
+            android:exported="true"
+            android:theme="@style/Theme.TimeManagement" />
 
         <receiver
             android:name=".widgets.TodayWidgetProvider"
@@ -80,6 +87,17 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/motivation_widget_info" />
         </receiver>
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
         <receiver
             android:name=".widgets.TimeWidgetActionReceiver"

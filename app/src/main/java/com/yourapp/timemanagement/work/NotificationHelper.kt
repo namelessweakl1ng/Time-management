@@ -10,9 +10,12 @@ import com.yourapp.timemanagement.MainActivity
 import com.yourapp.timemanagement.R
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
 
 object NotificationHelper {
     const val REMINDER_CHANNEL_ID = "time_management_reminders"
+    const val NUDGE_NOTIFICATION_ID = 7_401
 
     fun ensureChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -43,7 +46,14 @@ object NotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
         runCatching {
-            NotificationManagerCompat.from(context).notify(notificationId, notification)
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                NotificationManagerCompat.from(context)
+                    .notify(notificationId, notification)
+            }
         }
     }
 }

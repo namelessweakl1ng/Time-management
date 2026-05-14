@@ -13,12 +13,16 @@ import com.yourapp.timemanagement.data.repository.TimeRepository
 import com.yourapp.timemanagement.domain.ProductivityCalculator
 import com.yourapp.timemanagement.domain.SmartSuggestionEngine
 import com.yourapp.timemanagement.domain.TaskStatus
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.LocalTime
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class TimeWidgetUpdater(
-    private val context: Context,
+@Singleton
+class TimeWidgetUpdater @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val timeRepository: TimeRepository,
     private val settingsRepository: SettingsRepository,
     private val calculator: ProductivityCalculator,
@@ -36,7 +40,7 @@ class TimeWidgetUpdater(
     }
 
     suspend fun update(widgetType: String, ids: IntArray) {
-        ids.forEach { manager.updateAppWidget(it, render(widgetType)) }
+        ids.forEach { widgetId -> manager.updateAppWidget(widgetId, render(widgetType, widgetId)) }
     }
 
     private suspend fun updateProvider(providerClass: Class<*>, widgetType: String) {
@@ -44,16 +48,17 @@ class TimeWidgetUpdater(
         update(widgetType, ids)
     }
 
-    private suspend fun render(widgetType: String): RemoteViews {
+    private suspend fun render(widgetType: String, widgetId: Int): RemoteViews {
         val todayTasks = timeRepository.tasksForDate(LocalDate.now()).first()
         val sessions = timeRepository.sessionsForDate(LocalDate.now()).first()
         val categories = timeRepository.categories.first()
         val settings = settingsRepository.settings.first()
         val stats = calculator.calculate(todayTasks, sessions, settings)
         val insights = suggestionEngine.insights(todayTasks, sessions, categories, stats)
+        val preference = timeRepository.getWidgetPreference(widgetId)
         return when (widgetType) {
             WIDGET_FOCUS -> focusWidget(todayTasks, stats)
-            WIDGET_PROGRESS -> progressWidget(stats)
+            WIDGET_PROGRESS -> progressWidget(stats, todayTasks, preference?.widgetType ?: METRIC_PRODUCTIVITY_SCORE)
             WIDGET_QUICK_ADD -> quickAddWidget()
             WIDGET_MOTIVATION -> motivationWidget(insights.firstOrNull()?.message ?: "Protect one focused block today.")
             else -> todayWidget(todayTasks)
@@ -88,11 +93,20 @@ class TimeWidgetUpdater(
         }
     }
 
-    private fun progressWidget(stats: com.yourapp.timemanagement.domain.ProductivityStats): RemoteViews {
+    private fun progressWidget(
+        stats: com.yourapp.timemanagement.domain.ProductivityStats,
+        tasks: List<com.yourapp.timemanagement.domain.Task>,
+        metric: String,
+    ): RemoteViews {
+        val (score, body) = when (metric) {
+            METRIC_TODAY_TASKS -> tasks.count { it.status == TaskStatus.Completed }.toString() to "${tasks.size} tasks planned today"
+            METRIC_FOCUS_MINUTES -> stats.actualProductiveMinutes.toString() to "focused minutes today"
+            else -> stats.score.toString() to "${stats.completedTasks}/${stats.totalTasks} done  |  ${stats.actualProductiveMinutes}m focused"
+        }
         return RemoteViews(context.packageName, R.layout.widget_progress).apply {
             setTextViewText(R.id.widget_title, "Daily progress")
-            setTextViewText(R.id.widget_score, "${stats.score}")
-            setTextViewText(R.id.widget_body, "${stats.completedTasks}/${stats.totalTasks} done  |  ${stats.actualProductiveMinutes}m focused")
+            setTextViewText(R.id.widget_score, score)
+            setTextViewText(R.id.widget_body, body)
             setOnClickPendingIntent(R.id.widget_root, openAppIntent(30))
         }
     }

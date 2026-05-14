@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -32,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,6 +58,8 @@ fun TaskListScreen(
     onMoveTask: (Long, Int) -> Unit,
     onDeleteTask: (Long) -> Unit,
     onStatusChange: (Long, TaskStatus) -> Unit,
+    onToggleTagFilter: (Long) -> Unit,
+    onClearTagFilters: () -> Unit,
 ) {
     var filter by remember { mutableStateOf(TaskFilter.All) }
     val tasks = remember(uiState.todayTasks, filter) {
@@ -90,6 +94,22 @@ fun TaskListScreen(
                         selected = filter == option,
                         onClick = { filter = option },
                         label = { Text(option.name) },
+                    )
+                }
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                FilterChip(
+                    selected = uiState.selectedTagIds.isEmpty(),
+                    onClick = onClearTagFilters,
+                    label = { Text("All labels") },
+                )
+                uiState.tags.take(5).forEach { tag ->
+                    FilterChip(
+                        selected = tag.id in uiState.selectedTagIds,
+                        onClick = { onToggleTagFilter(tag.id) },
+                        label = { Text("#${tag.name}") },
                     )
                 }
             }
@@ -131,8 +151,29 @@ private fun TaskRow(
     onComplete: () -> Unit,
     onSkip: () -> Unit,
 ) {
+    var dragOffset by remember(task.id) { mutableStateOf(0f) }
     PremiumCard(settings = uiState.settings, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            Modifier
+                .pointerInput(task.id) {
+                    detectDragGesturesAfterLongPress(
+                        onDragEnd = {
+                            when {
+                                dragOffset < -36f -> onMoveUp()
+                                dragOffset > 36f -> onMoveDown()
+                            }
+                            dragOffset = 0f
+                        },
+                        onDragCancel = { dragOffset = 0f },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            dragOffset += dragAmount.y
+                        },
+                    )
+                }
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(task.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -146,6 +187,9 @@ private fun TaskRow(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(task.priority.name, color = priorityColor(task.priority), style = MaterialTheme.typography.labelLarge)
                 if (task.tag.isNotBlank()) Text("#${task.tag}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                uiState.taskTagIds[task.id].orEmpty().mapNotNull { tagId -> uiState.tags.firstOrNull { it.id == tagId } }.take(2).forEach { tag ->
+                    Text("#${tag.name}", color = MaterialTheme.colorScheme.primary)
+                }
             }
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Row {

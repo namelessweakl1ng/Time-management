@@ -95,6 +95,27 @@ fun AnalyticsScreen(
                 }
             }
         }
+        item {
+            PremiumCard(settings = uiState.settings, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("On-device predictions", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    if (uiState.predictions.isEmpty()) {
+                        Text("Predictions are trained from your local completion patterns and stay on this device.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        uiState.predictions.take(5).forEach { prediction ->
+                            val task = uiState.allTasks.firstOrNull { it.id == prediction.taskId }
+                            Text(
+                                "${task?.title ?: "Task"} -> ${prediction.suggestedHour}:00, ${(prediction.confidence * 100).toInt()}% confidence",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (uiState.flowState.active) {
+                        Text("Flow State: ${uiState.flowState.consecutiveSessions} consecutive sessions.", color = Color(0xFF1F8A70))
+                    }
+                }
+            }
+        }
     }
 }
 

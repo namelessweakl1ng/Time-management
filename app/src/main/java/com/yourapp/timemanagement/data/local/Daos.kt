@@ -44,6 +44,60 @@ interface TaskDao {
 }
 
 @Dao
+interface SubTaskDao {
+    @Query("SELECT * FROM sub_tasks WHERE parentTaskId = :taskId ORDER BY id ASC")
+    fun observeForTask(taskId: Long): Flow<List<SubTaskEntity>>
+
+    @Query("SELECT * FROM sub_tasks ORDER BY parentTaskId ASC, id ASC")
+    fun observeAll(): Flow<List<SubTaskEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(subTask: SubTaskEntity): Long
+
+    @Query("UPDATE sub_tasks SET isCompleted = :isCompleted WHERE id = :id")
+    suspend fun updateCompleted(id: Long, isCompleted: Boolean)
+
+    @Query("DELETE FROM sub_tasks WHERE id = :id")
+    suspend fun deleteById(id: Long)
+}
+
+@Dao
+interface TagDao {
+    @Query("SELECT * FROM tags ORDER BY name ASC")
+    fun observeAll(): Flow<List<TagEntity>>
+
+    @Query("SELECT * FROM tags WHERE id IN (:ids) ORDER BY name ASC")
+    fun observeByIds(ids: List<Long>): Flow<List<TagEntity>>
+
+    @Query("SELECT * FROM tags WHERE name = :name LIMIT 1")
+    suspend fun getByName(name: String): TagEntity?
+
+    @Query("SELECT tags.* FROM tags INNER JOIN task_tag_cross_refs ON tags.id = task_tag_cross_refs.tagId WHERE task_tag_cross_refs.taskId = :taskId ORDER BY tags.name ASC")
+    fun observeForTask(taskId: Long): Flow<List<TagEntity>>
+
+    @Query("SELECT tagId FROM task_tag_cross_refs WHERE taskId = :taskId")
+    fun observeTagIdsForTask(taskId: Long): Flow<List<Long>>
+
+    @Query("SELECT taskId FROM task_tag_cross_refs WHERE tagId IN (:tagIds)")
+    fun observeTaskIdsForTags(tagIds: List<Long>): Flow<List<Long>>
+
+    @Query("SELECT * FROM task_tag_cross_refs")
+    fun observeCrossRefs(): Flow<List<TaskTagCrossRefEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(tag: TagEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCrossRef(ref: TaskTagCrossRefEntity)
+
+    @Query("DELETE FROM task_tag_cross_refs WHERE taskId = :taskId AND tagId = :tagId")
+    suspend fun deleteCrossRef(taskId: Long, tagId: Long)
+
+    @Query("DELETE FROM tags WHERE id = :id")
+    suspend fun deleteById(id: Long)
+}
+
+@Dao
 interface CategoryDao {
     @Query("SELECT * FROM categories ORDER BY name ASC")
     fun observeAll(): Flow<List<CategoryEntity>>

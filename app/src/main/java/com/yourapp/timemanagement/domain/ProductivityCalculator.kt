@@ -3,8 +3,11 @@ package com.yourapp.timemanagement.domain
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class ProductivityCalculator {
+@Singleton
+class ProductivityCalculator @Inject constructor() {
     fun calculate(
         tasks: List<Task>,
         sessions: List<FocusSession>,

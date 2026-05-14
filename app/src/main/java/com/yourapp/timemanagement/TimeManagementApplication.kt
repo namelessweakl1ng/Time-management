@@ -1,20 +1,27 @@
 package com.yourapp.timemanagement
 
 import android.app.Application
-import com.yourapp.timemanagement.core.AppContainer
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import com.yourapp.timemanagement.di.WidgetRefreshScheduler
 import com.yourapp.timemanagement.work.NotificationHelper
+import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
-class TimeManagementApplication : Application() {
-    lateinit var container: AppContainer
-        private set
+@HiltAndroidApp
+class TimeManagementApplication : Application(), Configuration.Provider {
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var widgetRefreshScheduler: WidgetRefreshScheduler
 
     override fun onCreate() {
         super.onCreate()
-        container = AppContainer(this)
         NotificationHelper.ensureChannels(this)
-        container.scheduleWidgetRefresh()
+        widgetRefreshScheduler.schedule()
+        widgetRefreshScheduler.scheduleFocusNudges()
     }
-}
 
-fun android.content.Context.appContainer(): AppContainer =
-    (applicationContext as TimeManagementApplication).container
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+}

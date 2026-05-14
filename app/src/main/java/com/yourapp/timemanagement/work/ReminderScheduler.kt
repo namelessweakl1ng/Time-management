@@ -5,9 +5,13 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class ReminderScheduler(private val context: Context) {
+@Singleton
+class ReminderScheduler @Inject constructor(@param:ApplicationContext private val context: Context) {
     fun schedule(taskId: Long, title: String, triggerAtMillis: Long) {
         val delay = (triggerAtMillis - System.currentTimeMillis()).coerceAtLeast(0)
         val request = OneTimeWorkRequestBuilder<TaskReminderWorker>()

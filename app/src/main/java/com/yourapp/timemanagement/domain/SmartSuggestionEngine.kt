@@ -3,16 +3,40 @@ package com.yourapp.timemanagement.domain
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class SmartSuggestionEngine {
+@Singleton
+class SmartSuggestionEngine @Inject constructor() {
     fun insights(
         tasks: List<Task>,
         sessions: List<FocusSession>,
         categories: List<Category>,
         stats: ProductivityStats,
+        predictions: List<TaskTimePrediction> = emptyList(),
+        flowState: FlowState = FlowState(false, 0, 0, 25),
     ): List<SmartInsight> {
         val result = mutableListOf<SmartInsight>()
         val plannedMinutes = tasks.sumOf { it.estimateMinutes }
+
+        if (flowState.active) {
+            result += SmartInsight(
+                title = "Flow State",
+                message = "${flowState.consecutiveSessions} strong sessions in a row. Consider another ${flowState.suggestedNextBlockMinutes} minute block before switching context.",
+                severity = InsightSeverity.Success,
+            )
+        }
+
+        predictions.firstOrNull { it.confidence >= 0.55f }?.let { prediction ->
+            val task = tasks.firstOrNull { it.id == prediction.taskId }
+            if (task != null) {
+                result += SmartInsight(
+                    title = "Predicted focus window",
+                    message = "${task.title} is likely to land best around ${prediction.suggestedHour}:00. ${prediction.reason}",
+                    severity = InsightSeverity.Info,
+                )
+            }
+        }
 
         if (plannedMinutes > 9 * 60) {
             result += SmartInsight(
@@ -81,7 +105,7 @@ class SmartSuggestionEngine {
                 ),
             )
         } else {
-            result.take(4)
+            result.take(5)
         }
     }
 

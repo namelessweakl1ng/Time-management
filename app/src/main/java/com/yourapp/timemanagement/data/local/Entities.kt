@@ -1,6 +1,8 @@
 package com.yourapp.timemanagement.data.local
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "categories")
@@ -28,6 +30,56 @@ data class TaskEntity(
     val status: String,
     val sortOrder: Int,
     val createdAtMillis: Long,
+)
+
+@Entity(
+    tableName = "sub_tasks",
+    foreignKeys = [
+        ForeignKey(
+            entity = TaskEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["parentTaskId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("parentTaskId")],
+)
+data class SubTaskEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val parentTaskId: Long,
+    val title: String,
+    val isCompleted: Boolean,
+)
+
+@Entity(tableName = "tags", indices = [Index(value = ["name"], unique = true)])
+data class TagEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val color: Long,
+)
+
+@Entity(
+    tableName = "task_tag_cross_refs",
+    primaryKeys = ["taskId", "tagId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = TaskEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["taskId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = TagEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["tagId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("taskId"), Index("tagId")],
+)
+data class TaskTagCrossRefEntity(
+    val taskId: Long,
+    val tagId: Long,
 )
 
 @Entity(tableName = "focus_sessions")

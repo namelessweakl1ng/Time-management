@@ -6,8 +6,13 @@ import com.yourapp.timemanagement.data.local.FocusSessionDao
 import com.yourapp.timemanagement.data.local.FocusSessionEntity
 import com.yourapp.timemanagement.data.local.InterruptionDao
 import com.yourapp.timemanagement.data.local.InterruptionEntity
+import com.yourapp.timemanagement.data.local.SubTaskDao
+import com.yourapp.timemanagement.data.local.SubTaskEntity
+import com.yourapp.timemanagement.data.local.TagDao
+import com.yourapp.timemanagement.data.local.TagEntity
 import com.yourapp.timemanagement.data.local.TaskDao
 import com.yourapp.timemanagement.data.local.TaskEntity
+import com.yourapp.timemanagement.data.local.TaskTagCrossRefEntity
 import com.yourapp.timemanagement.data.local.WidgetPreferenceDao
 import com.yourapp.timemanagement.data.local.WidgetPreferenceEntity
 import com.yourapp.timemanagement.data.local.toDomain
@@ -16,23 +21,31 @@ import com.yourapp.timemanagement.domain.Category
 import com.yourapp.timemanagement.domain.FocusSession
 import com.yourapp.timemanagement.domain.RecurrenceRule
 import com.yourapp.timemanagement.domain.SessionType
+import com.yourapp.timemanagement.domain.SubTask
+import com.yourapp.timemanagement.domain.Tag
 import com.yourapp.timemanagement.domain.Task
 import com.yourapp.timemanagement.domain.TaskPriority
 import com.yourapp.timemanagement.domain.TaskStatus
 import com.yourapp.timemanagement.domain.WidgetPreferences
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class TimeRepository(
+@Singleton
+class TimeRepository @Inject constructor(
     private val taskDao: TaskDao,
     private val categoryDao: CategoryDao,
     private val sessionDao: FocusSessionDao,
     private val interruptionDao: InterruptionDao,
     private val widgetPreferenceDao: WidgetPreferenceDao,
+    private val subTaskDao: SubTaskDao,
+    private val tagDao: TagDao,
 ) {
     val allTasks: Flow<List<Task>> = taskDao.observeAll().map { tasks -> tasks.map { it.toDomain() } }
     val categories: Flow<List<Category>> = categoryDao.observeAll().map { rows -> rows.map { it.toDomain() } }
@@ -40,17 +53,59 @@ class TimeRepository(
     val activeSession: Flow<FocusSession?> = sessionDao.observeActive().map { it?.toDomain() }
     val widgetPreferences: Flow<List<WidgetPreferences>> =
         widgetPreferenceDao.observeAll().map { rows -> rows.map { it.toDomain() } }
+    val subTasks: Flow<List<SubTask>> = subTaskDao.observeAll().map { rows -> rows.map { it.toDomain() } }
+    val tags: Flow<List<Tag>> = tagDao.observeAll().map { rows -> rows.map { it.toDomain() } }
+    val taskTagIds: Flow<Map<Long, Set<Long>>> = tagDao.observeCrossRefs().map { refs ->
+        refs.groupBy(TaskTagCrossRefEntity::taskId) { it.tagId }.mapValues { it.value.toSet() }
+    }
 
     fun tasksForDate(date: LocalDate): Flow<List<Task>> =
         taskDao.observeByDate(date.toEpochDay()).map { rows -> rows.map { it.toDomain() } }
 
     fun task(id: Long): Flow<Task?> = taskDao.observeById(id).map { it?.toDomain() }
 
+    fun subTasksForTask(taskId: Long): Flow<List<SubTask>> =
+        subTaskDao.observeForTask(taskId).map { rows -> rows.map { it.toDomain() } }
+
+    fun tagsForTask(taskId: Long): Flow<List<Tag>> =
+        tagDao.observeForTask(taskId).map { rows -> rows.map { it.toDomain() } }
+
+    fun tagIdsForTask(taskId: Long): Flow<List<Long>> = tagDao.observeTagIdsForTask(taskId)
+
+    fun taskIdsForTags(tagIds: Set<Long>): Flow<Set<Long>> =
+        if (tagIds.isEmpty()) flowOf(emptySet()) else tagDao.observeTaskIdsForTags(tagIds.toList()).map { it.toSet() }
+
     fun sessionsForDate(date: LocalDate): Flow<List<FocusSession>> =
         sessionDao.observeBetween(date.startMillis(), date.plusDays(1).startMillis())
             .map { rows -> rows.map { it.toDomain() } }
 
     suspend fun saveTask(task: Task): Long = taskDao.upsert(task.toEntity())
+
+    suspend fun saveSubTask(parentTaskId: Long, title: String): Long =
+        subTaskDao.upsert(SubTaskEntity(parentTaskId = parentTaskId, title = title.ifBlank { "Checklist item" }, isCompleted = false))
+
+    suspend fun setSubTaskCompleted(subTaskId: Long, isCompleted: Boolean) {
+        subTaskDao.updateCompleted(subTaskId, isCompleted)
+    }
+
+    suspend fun deleteSubTask(subTaskId: Long) {
+        subTaskDao.deleteById(subTaskId)
+    }
+
+    suspend fun saveTag(name: String, color: Long): Long {
+        val normalized = name.trim().lowercase().take(24)
+        if (normalized.isBlank()) return 0
+        val inserted = tagDao.insert(TagEntity(name = normalized, color = color))
+        return if (inserted > 0) inserted else tagDao.getByName(normalized)?.id ?: 0
+    }
+
+    suspend fun setTaskTag(taskId: Long, tagId: Long, selected: Boolean) {
+        if (selected) {
+            tagDao.upsertCrossRef(TaskTagCrossRefEntity(taskId, tagId))
+        } else {
+            tagDao.deleteCrossRef(taskId, tagId)
+        }
+    }
 
     suspend fun createTask(
         title: String,

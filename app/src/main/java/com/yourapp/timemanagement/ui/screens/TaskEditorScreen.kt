@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -34,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import com.yourapp.timemanagement.core.TaskDraft
 import com.yourapp.timemanagement.core.TimeManagementUiState
 import com.yourapp.timemanagement.domain.RecurrenceRule
+import com.yourapp.timemanagement.domain.SubTask
+import com.yourapp.timemanagement.domain.Tag
 import com.yourapp.timemanagement.domain.TaskPriority
 import com.yourapp.timemanagement.ui.common.PremiumCard
 import com.yourapp.timemanagement.ui.common.SectionHeader
@@ -48,6 +51,11 @@ fun TaskEditorScreen(
     initialDraft: TaskDraft,
     onSave: (TaskDraft) -> Unit,
     onCancel: () -> Unit,
+    onAddSubTask: (Long, String) -> Unit,
+    onSubTaskChecked: (Long, Boolean) -> Unit,
+    onDeleteSubTask: (Long) -> Unit,
+    onAddTag: (String, Long) -> Unit,
+    onTaskTagSelected: (Long, Long, Boolean) -> Unit,
 ) {
     var draft by remember(initialDraft.id) { mutableStateOf(initialDraft) }
     var timeText by remember(initialDraft.id) {
@@ -55,6 +63,10 @@ fun TaskEditorScreen(
     }
     var estimateText by remember(initialDraft.id) { mutableStateOf(initialDraft.estimateMinutes.toString()) }
     var reminderEnabled by remember(initialDraft.id) { mutableStateOf(initialDraft.reminderMinutesBefore != null) }
+    var subTaskTitle by remember(initialDraft.id) { mutableStateOf("") }
+    var newTagName by remember { mutableStateOf("") }
+    val taskSubTasks = remember(uiState.subTasks, draft.id) { uiState.subTasks.filter { it.parentTaskId == draft.id } }
+    val assignedTagIds = uiState.taskTagIds[draft.id].orEmpty()
 
     Column(
         modifier = Modifier
@@ -132,10 +144,34 @@ fun TaskEditorScreen(
                 OutlinedTextField(
                     value = draft.tag,
                     onValueChange = { draft = draft.copy(tag = it.take(20)) },
-                    label = { Text("Tag") },
+                    label = { Text("Legacy tag") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
+                Text("Labels", style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    uiState.tags.take(6).forEach { tag ->
+                        FilterChip(
+                            selected = tag.id in assignedTagIds,
+                            onClick = { if (draft.id != 0L) onTaskTagSelected(draft.id, tag.id, tag.id !in assignedTagIds) },
+                            label = { Text("#${tag.name}") },
+                            enabled = draft.id != 0L,
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newTagName,
+                        onValueChange = { newTagName = it.take(24) },
+                        label = { Text("New label") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                    )
+                    Button(onClick = {
+                        onAddTag(newTagName, 0xFF1F8A70)
+                        newTagName = ""
+                    }) { Text("Create") }
+                }
                 Text("Repeat", style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     RecurrenceRule.entries.forEach { rule ->
@@ -155,6 +191,19 @@ fun TaskEditorScreen(
                 }
             }
         }
+        TaskChecklistCard(
+            uiState = uiState,
+            enabled = draft.id != 0L,
+            subTasks = taskSubTasks,
+            subTaskTitle = subTaskTitle,
+            onTitleChange = { subTaskTitle = it },
+            onAdd = {
+                onAddSubTask(draft.id, subTaskTitle)
+                subTaskTitle = ""
+            },
+            onChecked = onSubTaskChecked,
+            onDelete = onDeleteSubTask,
+        )
         Button(
             onClick = {
                 val parsedTime = parseTime(timeText) ?: draft.startTime
@@ -171,6 +220,50 @@ fun TaskEditorScreen(
             Icon(Icons.Rounded.Check, contentDescription = null)
             Spacer(Modifier.padding(4.dp))
             Text("Save task")
+        }
+    }
+}
+
+@Composable
+private fun TaskChecklistCard(
+    uiState: TimeManagementUiState,
+    enabled: Boolean,
+    subTasks: List<SubTask>,
+    subTaskTitle: String,
+    onTitleChange: (String) -> Unit,
+    onAdd: () -> Unit,
+    onChecked: (Long, Boolean) -> Unit,
+    onDelete: (Long) -> Unit,
+) {
+    PremiumCard(settings = uiState.settings, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Checklist", style = MaterialTheme.typography.titleLarge)
+            if (!enabled) {
+                Text("Save the task first, then add subtasks and labels.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            subTasks.forEach { item ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Switch(checked = item.isCompleted, onCheckedChange = { onChecked(item.id, it) }, enabled = enabled)
+                    Text(item.title, modifier = Modifier.weight(1f))
+                    Icon(
+                        Icons.Rounded.Delete,
+                        contentDescription = "Delete subtask",
+                        modifier = Modifier.padding(8.dp),
+                    )
+                    Button(onClick = { onDelete(item.id) }, enabled = enabled) { Text("Remove") }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = subTaskTitle,
+                    onValueChange = { onTitleChange(it.take(80)) },
+                    label = { Text("Checklist item") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    enabled = enabled,
+                )
+                Button(onClick = onAdd, enabled = enabled && subTaskTitle.isNotBlank()) { Text("Add") }
+            }
         }
     }
 }

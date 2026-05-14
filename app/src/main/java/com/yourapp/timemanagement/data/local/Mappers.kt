@@ -4,6 +4,8 @@ import com.yourapp.timemanagement.domain.Category
 import com.yourapp.timemanagement.domain.FocusSession
 import com.yourapp.timemanagement.domain.RecurrenceRule
 import com.yourapp.timemanagement.domain.SessionType
+import com.yourapp.timemanagement.domain.SubTask
+import com.yourapp.timemanagement.domain.Tag
 import com.yourapp.timemanagement.domain.Task
 import com.yourapp.timemanagement.domain.TaskPriority
 import com.yourapp.timemanagement.domain.TaskStatus
@@ -59,6 +61,32 @@ fun Category.toEntity(): CategoryEntity = CategoryEntity(
     name = name,
     color = color,
     iconName = iconName,
+)
+
+fun SubTaskEntity.toDomain(): SubTask = SubTask(
+    id = id,
+    parentTaskId = parentTaskId,
+    title = title,
+    isCompleted = isCompleted,
+)
+
+fun SubTask.toEntity(): SubTaskEntity = SubTaskEntity(
+    id = id,
+    parentTaskId = parentTaskId,
+    title = title,
+    isCompleted = isCompleted,
+)
+
+fun TagEntity.toDomain(): Tag = Tag(
+    id = id,
+    name = name,
+    color = color,
+)
+
+fun Tag.toEntity(): TagEntity = TagEntity(
+    id = id,
+    name = name.trim().lowercase(),
+    color = color,
 )
 
 fun FocusSessionEntity.toDomain(): FocusSession = FocusSession(

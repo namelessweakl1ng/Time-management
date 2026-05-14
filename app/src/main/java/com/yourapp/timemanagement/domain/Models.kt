@@ -7,10 +7,69 @@ enum class TaskPriority { Low, Medium, High, Critical }
 enum class TaskStatus { Planned, InProgress, Completed, Skipped, Overdue }
 enum class RecurrenceRule { None, Daily, Weekdays, Weekly }
 enum class SessionType { Focus, Break, Distracted }
-enum class ThemeMode { System, Light, Dark }
+enum class ThemeMode { System, Light, Dark, Amoled }
 enum class CardStyle { Rounded, Sharp }
 enum class LayoutDensity { Compact, Spacious }
 enum class ScoringStyle { Balanced, FocusHeavy, CompletionHeavy }
+
+data class SubTask(
+    val id: Long,
+    val parentTaskId: Long,
+    val title: String,
+    val isCompleted: Boolean,
+)
+
+data class Tag(
+    val id: Long,
+    val name: String,
+    val color: Long,
+)
+
+data class FocusPreset(
+    val id: Long,
+    val name: String,
+    val focusMinutes: Int,
+    val breakMinutes: Int,
+)
+
+data class CalendarEvent(
+    val id: Long,
+    val title: String,
+    val startMillis: Long,
+    val endMillis: Long,
+    val calendarName: String,
+)
+
+data class TaskTimePrediction(
+    val taskId: Long,
+    val suggestedHour: Int,
+    val confidence: Float,
+    val reason: String,
+)
+
+data class FlowState(
+    val active: Boolean,
+    val consecutiveSessions: Int,
+    val totalMinutes: Int,
+    val suggestedNextBlockMinutes: Int,
+)
+
+data class Achievement(
+    val id: String,
+    val title: String,
+    val description: String,
+    val xpReward: Int,
+)
+
+data class GamificationState(
+    val xp: Int = 0,
+    val level: Int = 1,
+    val levelProgress: Float = 0f,
+    val currentLevelXp: Int = 0,
+    val nextLevelXp: Int = 100,
+    val streakDays: Int = 0,
+    val unlockedAchievements: List<Achievement> = emptyList(),
+)
 
 data class Category(
     val id: Long,
@@ -90,10 +149,17 @@ data class UserSettings(
     val density: LayoutDensity = LayoutDensity.Spacious,
     val dashboardModules: List<DashboardModule> = defaultDashboardModules,
     val scoringStyle: ScoringStyle = ScoringStyle.Balanced,
-    val focusPresetMinutes: List<Int> = listOf(25, 45, 60),
+    val focusPresets: List<FocusPreset> = defaultFocusPresets,
     val notificationTone: String = "Gentle chime",
     val seededSampleData: Boolean = false,
-)
+    val xp: Int = 0,
+    val level: Int = 1,
+    val streakDays: Int = 0,
+    val unlockedAchievementIds: Set<String> = emptySet(),
+) {
+    val focusPresetMinutes: List<Int>
+        get() = focusPresets.map(FocusPreset::focusMinutes)
+}
 
 data class WidgetPreferences(
     val widgetId: Int,
@@ -136,4 +202,10 @@ val defaultDashboardModules = listOf(
     DashboardModule("score", "Score"),
     DashboardModule("streak", "Streak"),
     DashboardModule("insight", "Insight"),
+)
+
+val defaultFocusPresets = listOf(
+    FocusPreset(1, "Pomodoro", 25, 5),
+    FocusPreset(2, "Deep Work", 50, 10),
+    FocusPreset(3, "Sprint", 15, 3),
 )
